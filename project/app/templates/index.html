@@ -1,0 +1,130 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Демонстрация API</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Вход в систему (Лаб. №7)</h1>
+
+        <div class="forms">
+            <div class="form-box">
+                <h2>Регистрация</h2>
+                <input type="text" id="reg-username" placeholder="Логин">
+                <input type="password" id="reg-password" placeholder="Пароль">
+                <button onclick="register()">Создать аккаунт</button>
+            </div>
+
+            <div class="form-box">
+                <h2>Авторизация</h2>
+                <input type="text" id="login-username" placeholder="Логин">
+                <input type="password" id="login-password" placeholder="Пароль">
+                <button onclick="login()">Войти</button>
+            </div>
+        </div>
+
+        <div id="result" class="result-box"></div>
+
+        <div class="chart-container">
+            <h2>Статистика пользователей</h2>
+            <button onclick="updateChart()" class="btn-update">Обновить график</button>
+            <div class="chart-wrapper">
+                <canvas id="usersChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let myChart = null;
+
+        async function register() {
+            const username = document.getElementById('reg-username').value;
+            const password = document.getElementById('reg-password').value;
+            try {
+                const res = await fetch('/api/v1/users/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password})
+                });
+                const data = await res.json();
+                showResult(res.status, data);
+                updateChart();
+            } catch (e) {
+                showResult(500, {error: "Ошибка соединения с сервером"});
+            }
+        }
+
+        async function login() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            try {
+                const res = await fetch('/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password})
+                });
+                const data = await res.json();
+                showResult(res.status, data);
+            } catch (e) {
+                showResult(500, {error: "Ошибка соединения с сервером"});
+            }
+        }
+
+        function showResult(status, data) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            if (status >= 200 && status < 300) {
+                resultDiv.style.backgroundColor = '#d4edda';
+                resultDiv.style.color = '#155724';
+            } else {
+                resultDiv.style.backgroundColor = '#f8d7da';
+                resultDiv.style.color = '#721c24';
+            }
+            resultDiv.innerText = JSON.stringify(data, null, 2);
+        }
+
+        async function updateChart() {
+            try {
+                const res = await fetch('/api/v1/stats');
+                const data = await res.json();
+
+                const ctx = document.getElementById('usersChart').getContext('2d');
+
+                if (myChart) {
+                    myChart.destroy();
+                }
+
+                if (data.total === 0) {
+                    return;
+                }
+
+                myChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Активные', 'Неактивные'],
+                        datasets: [{
+                            data: [data.active, data.inactive],
+                            backgroundColor: ['#28a745', '#dc3545'],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.log("Ошибка графика:", e);
+            }
+        }
+
+        window.onload = updateChart;
+    </script>
+</body>
+</html>
